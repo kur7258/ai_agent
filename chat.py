@@ -1,5 +1,5 @@
 import streamlit as st
-from llm import get_ai_message
+from llm import get_ai_response
 
 st.set_page_config(page_title="소득세 챗봇", page_icon=":shark:")
 
@@ -19,7 +19,7 @@ if user_question := st.chat_input("질문을 입력하세요"):
     st.session_state.message_list.append({"role": "user", "content": user_question})
 
     with st.spinner("답변을 생성중입니다..."):
-        ai_message = get_ai_message(user_question)
+        ai_response = get_ai_response(user_question)
         with st.chat_message("ai"):
-            st.write(ai_message)
-        st.session_state.message_list.append({"role": "ai", "content": ai_message})
+            ai_message = st.write_stream(ai_response)
+            st.session_state.message_list.append({"role": "ai", "content": ai_message})
