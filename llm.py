@@ -10,23 +10,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
-def get_ai_message(user_message):
-
+def get_retriever():
     embedding = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     index_name = "tax-markdown-index"
     database = PineconeVectorStore.from_existing_index(index_name=index_name, embedding=embedding)
-
-    llm = GoogleGenerativeAI(model="gemini-2.0-flash")  
-    prompt = hub.pull("rlm/rag-prompt")
     retriever = database.as_retriever(search_kwargs={"k": 4})
 
-    qa_chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        retriever=retriever,
-        chain_type_kwargs={"prompt": prompt}
-    )
+    return retriever
 
+
+def get_llm(model='gemini-2.0-flash'):
+    llm = GoogleGenerativeAI(model=model)
+
+    return llm
+
+
+def get_dictionary_chain():
     dictionary = ['사람을 나타내는 표현 -> 거주자']
 
     prompt = ChatPromptTemplate.from_template(f'''
@@ -38,7 +37,26 @@ def get_ai_message(user_message):
         질문: {{question}}
     ''')
 
-    dictionary_chain = prompt | llm | StrOutputParser()
+    dictionary_chain = prompt | get_llm() | StrOutputParser()
+
+    return dictionary_chain
+
+def get_qa_chain():
+    retriever = get_retriever()
+    llm = get_llm()  
+    prompt = hub.pull("rlm/rag-prompt")
+    qa_chain = RetrievalQA.from_chain_type(
+        llm=llm,
+        retriever=retriever,
+        chain_type_kwargs={"prompt": prompt}
+    )
+
+    return qa_chain
+
+
+def get_ai_message(user_message):
+    qa_chain = get_qa_chain()
+    dictionary_chain = get_dictionary_chain()
 
     tax_chain = {'query': dictionary_chain} | qa_chain
     ai_message = tax_chain.invoke({"question": user_message})
